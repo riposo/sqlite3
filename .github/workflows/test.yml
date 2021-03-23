@@ -1,0 +1,49 @@
+name: Test
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [1.16.x]
+    steps:
+      - name: Fetch staticcheck
+        uses: engineerd/configurator@v0.0.6
+        with:
+          name: staticcheck
+          fromGitHubReleases: true
+          repo: dominikh/go-tools
+          version: latest
+          urlTemplate: "https://github.com/dominikh/go-tools/releases/download/2020.2.3/staticcheck_linux_amd64.tar.gz"
+          pathInArchive: staticcheck/staticcheck
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout plugin
+        uses: actions/checkout@v2
+        with:
+          path: plugin
+      - name: Checkout core
+        uses: actions/checkout@v2
+        with:
+          repository: riposo/riposo
+          path: riposo
+          token: ${{ secrets.PAT }}
+      - name: Cache modules
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Run tests
+        working-directory: plugin
+        run: make test staticcheck
