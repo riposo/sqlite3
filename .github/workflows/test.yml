@@ -7,11 +7,13 @@ on:
     branches:
       - main
 jobs:
-  unit:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         go-version: [1.16.x]
+    env:
+      GOPRIVATE: github.com/riposo
     steps:
       - name: Fetch staticcheck
         uses: engineerd/configurator@v0.0.6
@@ -23,16 +25,8 @@ jobs:
           urlTemplate: "https://github.com/dominikh/go-tools/releases/download/2020.2.3/staticcheck_linux_amd64.tar.gz"
           pathInArchive: staticcheck/staticcheck
           token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Checkout plugin
+      - name: Checkout
         uses: actions/checkout@v2
-        with:
-          path: plugin
-      - name: Checkout core
-        uses: actions/checkout@v2
-        with:
-          repository: riposo/riposo
-          path: riposo
-          token: ${{ secrets.PAT }}
       - name: Cache modules
         uses: actions/cache@v2
         with:
@@ -44,6 +38,10 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go-version }}
+      - name: Grant private modules access
+        run: |
+          git config --global url."https://${{ secrets.PAT }}:x-oauth-basic@${{ env.GOPRIVATE }}".insteadOf "https://${{ env.GOPRIVATE }}"
       - name: Run tests
-        working-directory: plugin
-        run: make test staticcheck
+        run: make test
+      - name: Run staticcheck
+        run: make staticcheck

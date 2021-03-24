@@ -1,4 +1,4 @@
-package main
+package sqlite3
 
 import (
 	"github.com/riposo/riposo/pkg/api"
@@ -9,18 +9,16 @@ import (
 	_ "github.com/riposo/sqlite3/internal/storage"
 )
 
-var _ plugin.Factory = Plugin
-
-// Plugin export definition.
-func Plugin(rts *api.Routes) (plugin.Plugin, error) {
-	return plugin.New(
-		"sqlite3",
-		map[string]interface{}{
+func init() {
+	plugin.Register("sqlite3", func(rts *api.Routes) (plugin.Plugin, error) {
+		return pin{
 			"description": "The sqlite3 driver for Riposo storage, permissions and cache backends.",
 			"url":         "https://github.com/riposo/sqlite3",
-		},
-		nil,
-	), nil
+		}, nil
+	})
 }
 
-func main() {}
+type pin map[string]interface{}
+
+func (p pin) Meta() map[string]interface{} { return map[string]interface{}(p) }
+func (pin) Close() error                   { return nil }
