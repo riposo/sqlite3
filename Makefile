@@ -1,9 +1,9 @@
 GOTAGS='linux icu json1'
 
-default: test
+default: test lint
 
 test:
 	go test -tags $(GOTAGS) ./...
 
-staticcheck:
-	staticcheck ./...
+lint:
+	golangci-lint run

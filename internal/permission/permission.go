@@ -91,25 +91,25 @@ func (cn *conn) Begin(ctx context.Context) (permission.Transaction, error) {
 // Close implements permission.Backend.
 func (cn *conn) Close() (err error) {
 	if cn.stmt.getUserPrincipals != nil {
-		multierr.Append(err, cn.stmt.getUserPrincipals.Close())
+		err = multierr.Append(err, cn.stmt.getUserPrincipals.Close())
 	}
 	if cn.stmt.getACEPrincipals != nil {
-		multierr.Append(err, cn.stmt.getACEPrincipals.Close())
+		err = multierr.Append(err, cn.stmt.getACEPrincipals.Close())
 	}
 	if cn.stmt.matchACEPrincipals != nil {
-		multierr.Append(err, cn.stmt.matchACEPrincipals.Close())
+		err = multierr.Append(err, cn.stmt.matchACEPrincipals.Close())
 	}
 	if cn.stmt.insertACE != nil {
-		multierr.Append(err, cn.stmt.insertACE.Close())
+		err = multierr.Append(err, cn.stmt.insertACE.Close())
 	}
 	if cn.stmt.deleteACE != nil {
-		multierr.Append(err, cn.stmt.deleteACE.Close())
+		err = multierr.Append(err, cn.stmt.deleteACE.Close())
 	}
 	if cn.stmt.getPerms != nil {
-		multierr.Append(err, cn.stmt.getPerms.Close())
+		err = multierr.Append(err, cn.stmt.getPerms.Close())
 	}
 	if cn.db != nil {
-		multierr.Append(err, cn.db.Close())
+		err = multierr.Append(err, cn.db.Close())
 	}
 	return
 }
@@ -224,7 +224,7 @@ func (tx *transaction) RemoveUserPrincipal(principal string, userIDs []string) e
 }
 
 // PurgeUserPrincipals implements permission.Transaction.
-func (tx *transaction) PurgeUserPrincipals(principals ...string) error {
+func (tx *transaction) PurgeUserPrincipals(principals []string) error {
 	if len(principals) == 0 {
 		return nil
 	}
@@ -450,7 +450,7 @@ func (tx *transaction) MergePermissions(path riposo.Path, set schema.PermissionS
 }
 
 // DeletePermissions implements permission.Transaction.
-func (tx *transaction) DeletePermissions(paths ...riposo.Path) error {
+func (tx *transaction) DeletePermissions(paths []riposo.Path) error {
 	if len(paths) == 0 {
 		return nil
 	}

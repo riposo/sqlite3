@@ -11,20 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.16.x]
-    env:
-      GOPRIVATE: github.com/riposo
+        go-version: [1.17.x]
     steps:
-      - name: Fetch staticcheck
-        uses: engineerd/configurator@v0.0.6
-        with:
-          name: staticcheck
-          fromGitHubReleases: true
-          repo: dominikh/go-tools
-          version: latest
-          urlTemplate: "https://github.com/dominikh/go-tools/releases/download/2020.2.3/staticcheck_linux_amd64.tar.gz"
-          pathInArchive: staticcheck/staticcheck
-          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Checkout
         uses: actions/checkout@v2
       - name: Cache modules
@@ -38,10 +26,5 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go-version }}
-      - name: Grant private modules access
-        run: |
-          git config --global url."https://${{ secrets.PAT }}:x-oauth-basic@${{ env.GOPRIVATE }}".insteadOf "https://${{ env.GOPRIVATE }}"
       - name: Run tests
         run: make test
-      - name: Run staticcheck
-        run: make staticcheck
