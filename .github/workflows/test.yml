@@ -7,7 +7,16 @@ on:
     branches:
       - main
 jobs:
-  test:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Run lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: latest
+  unit:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -15,7 +24,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Cache modules
+      - name: Cache dependencies
         uses: actions/cache@v2
         with:
           path: ~/go/pkg/mod
