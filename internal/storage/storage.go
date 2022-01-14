@@ -20,7 +20,7 @@ const schemaVersion = 1
 var embedFS embed.FS
 
 func init() {
-	storage.Register("sqlite3", func(ctx context.Context, uri *url.URL, hlp *riposo.Helpers) (storage.Backend, error) {
+	storage.Register("sqlite3", func(ctx context.Context, uri *url.URL, hlp riposo.Helpers) (storage.Backend, error) {
 		return Connect(ctx, uri.String(), hlp)
 	})
 }
@@ -38,7 +38,7 @@ func (h *updateHandle) Object() *schema.Object { return h.obj }
 
 type conn struct {
 	db   *sql.DB
-	hlp  *riposo.Helpers
+	hlp  riposo.Helpers
 	stmt struct {
 		getModTime,
 		existsObject,
@@ -54,7 +54,7 @@ type conn struct {
 }
 
 // Connect connects to a PostgreSQL server.
-func Connect(ctx context.Context, dsn string, hlp *riposo.Helpers) (storage.Backend, error) {
+func Connect(ctx context.Context, dsn string, hlp riposo.Helpers) (storage.Backend, error) {
 	// connect to the DB.
 	db, err := common.Connect(ctx, dsn, "storage_schema_version", schemaVersion, embedFS)
 	if err != nil {
