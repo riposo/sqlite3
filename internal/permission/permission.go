@@ -22,7 +22,7 @@ const schemaVersion = 1
 var embedFS embed.FS
 
 func init() {
-	permission.Register("sqlite3", func(ctx context.Context, uri *url.URL, _ *riposo.Helpers) (permission.Backend, error) {
+	permission.Register("sqlite3", func(ctx context.Context, uri *url.URL, _ riposo.Helpers) (permission.Backend, error) {
 		return Connect(ctx, uri.String())
 	})
 }
