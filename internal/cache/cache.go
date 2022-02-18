@@ -112,7 +112,7 @@ func (cn *conn) Close() (err error) {
 
 func (cn *conn) pruneExpired(ctx context.Context, now time.Time) error {
 	_, err := cn.stmt.prune.ExecContext(ctx, now.UTC())
-	return err
+	return normErr(err)
 }
 
 func (cn *conn) pruneLoop(ctx context.Context) {
@@ -137,10 +137,20 @@ type transaction struct {
 	ctx context.Context
 }
 
+// Commit implements cache.Transaction interface.
+func (tx *transaction) Commit() error {
+	return normErr(tx.Tx.Commit())
+}
+
+// Rollback implements cache.Transaction interface.
+func (tx *transaction) Rollback() error {
+	return normErr(tx.Tx.Rollback())
+}
+
 // Flush implements cache.Transaction interface.
 func (tx *transaction) Flush() error {
 	_, err := tx.ExecContext(tx.ctx, `DELETE FROM cache_keys`)
-	return err
+	return normErr(err)
 }
 
 // Get implements cache.Transaction.
@@ -153,10 +163,8 @@ func (tx *transaction) Get(key string) ([]byte, error) {
 	err := tx.StmtContext(tx.ctx, tx.cn.stmt.getKey).
 		QueryRowContext(tx.ctx, key, time.Now().UTC()).
 		Scan(&val)
-	if err == sql.ErrNoRows {
-		return nil, cache.ErrNotFound
-	} else if err != nil {
-		return nil, err
+	if err != nil {
+		return nil, normErr(err)
 	}
 	return val, nil
 }
@@ -170,7 +178,7 @@ func (tx *transaction) Set(key string, val []byte, exp time.Time) error {
 	_, err := tx.
 		StmtContext(tx.ctx, tx.cn.stmt.setKey).
 		ExecContext(tx.ctx, key, val, exp.UTC())
-	return err
+	return normErr(err)
 }
 
 // Del implements cache.Transaction.
@@ -183,7 +191,7 @@ func (tx *transaction) Del(key string) error {
 		StmtContext(tx.ctx, tx.cn.stmt.delKey).
 		ExecContext(tx.ctx, key, time.Now().UTC())
 	if err != nil {
-		return err
+		return normErr(err)
 	}
 
 	num, err := res.RowsAffected()
@@ -193,4 +201,14 @@ func (tx *transaction) Del(key string) error {
 		return cache.ErrNotFound
 	}
 	return nil
+}
+
+func normErr(err error) error {
+	switch err {
+	case sql.ErrNoRows:
+		return cache.ErrNotFound
+	case sql.ErrTxDone:
+		return cache.ErrTxDone
+	}
+	return err
 }

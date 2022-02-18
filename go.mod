@@ -7,7 +7,7 @@ require (
 	github.com/bsm/gomega v1.17.0
 	github.com/bsm/minisql v0.3.0
 	github.com/mattn/go-sqlite3 v1.14.10
-	github.com/riposo/riposo v0.1.1-0.20220124111015-eb8388408d10
+	github.com/riposo/riposo v0.1.1-0.20220218125627-c6c027d27583
 	go.uber.org/multierr v1.7.0
 )
 

@@ -28,7 +28,9 @@ var _ = Describe("Backend", func() {
 		}
 	})
 
-	testdata.BehavesLikeBackend(&link)
+	Describe("common", func() {
+		testdata.BehavesLikeBackend(&link)
+	})
 })
 
 // --------------------------------------------------------------------

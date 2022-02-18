@@ -9,5 +9,5 @@ func (tx *transaction) NumEntries() (int64, error) {
 			SELECT SUM(cnt) FROM totals
 		`).
 		Scan(&cnt)
-	return cnt, err
+	return cnt, normErr(err)
 }
