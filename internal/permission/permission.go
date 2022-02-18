@@ -122,10 +122,23 @@ type transaction struct {
 	ctx context.Context
 }
 
+// Commit implements permission.Transaction interface.
+func (tx *transaction) Commit() error {
+	return normErr(tx.Tx.Commit())
+}
+
+// Rollback implements permission.Transaction interface.
+func (tx *transaction) Rollback() error {
+	return normErr(tx.Tx.Rollback())
+}
+
 // Flush implements permission.Transaction interface.
 func (tx *transaction) Flush() error {
 	_, err1 := tx.ExecContext(tx.ctx, `DELETE FROM permission_paths`)
-	_, err2 := tx.ExecContext(tx.ctx, `DELETE FROM  permission_principals`)
+	_, err2 := tx.ExecContext(tx.ctx, `DELETE FROM permission_principals`)
+	if err1 == sql.ErrTxDone || err2 == sql.ErrTxDone {
+		return permission.ErrTxDone
+	}
 	return multierr.Combine(err1, err2)
 }
 
@@ -135,7 +148,7 @@ func (tx *transaction) GetUserPrincipals(userID string) ([]string, error) {
 		StmtContext(tx.ctx, tx.cn.stmt.getUserPrincipals).
 		QueryContext(tx.ctx, userID, riposo.Authenticated, riposo.Everyone)
 	if err != nil {
-		return nil, err
+		return nil, normErr(err)
 	}
 	defer rows.Close()
 
@@ -196,7 +209,7 @@ func (tx *transaction) AddUserPrincipal(principal string, userIDs []string) erro
 	stmt.AppendString(" ON CONFLICT (user_id, principal) DO NOTHING")
 
 	_, err := stmt.ExecContext(tx.ctx, tx)
-	return err
+	return normErr(err)
 }
 
 // RemoveUserPrincipal implements permission.Transaction.
@@ -220,7 +233,7 @@ func (tx *transaction) RemoveUserPrincipal(principal string, userIDs []string) e
 	stmt.AppendByte(')')
 
 	_, err := stmt.ExecContext(tx.ctx, tx)
-	return err
+	return normErr(err)
 }
 
 // PurgeUserPrincipals implements permission.Transaction.
@@ -242,7 +255,7 @@ func (tx *transaction) PurgeUserPrincipals(principals []string) error {
 	stmt.AppendByte(')')
 
 	_, err := stmt.ExecContext(tx.ctx, tx)
-	return err
+	return normErr(err)
 }
 
 // GetACEPrincipals implements permission.Transaction.
@@ -260,7 +273,7 @@ func (tx *transaction) AddACEPrincipal(principal string, ent permission.ACE) err
 	_, err := tx.
 		StmtContext(tx.ctx, tx.cn.stmt.insertACE).
 		ExecContext(tx.ctx, ent.Path, ent.Perm, principal)
-	return err
+	return normErr(err)
 }
 
 // RemoveACEPrincipal implements permission.Transaction.
@@ -268,7 +281,7 @@ func (tx *transaction) RemoveACEPrincipal(principal string, ent permission.ACE) 
 	_, err := tx.
 		StmtContext(tx.ctx, tx.cn.stmt.deleteACE).
 		ExecContext(tx.ctx, ent.Path, ent.Perm, principal)
-	return err
+	return normErr(err)
 }
 
 // GetAllACEPrincipals implements permission.Transaction.
@@ -307,7 +320,7 @@ func (tx *transaction) GetAccessiblePaths(dst []riposo.Path, principals []string
 
 	rows, err := stmt.QueryContext(tx.ctx, tx)
 	if err != nil {
-		return dst, err
+		return dst, normErr(err)
 	}
 	defer rows.Close()
 
@@ -331,7 +344,7 @@ func (tx *transaction) GetPermissions(path riposo.Path) (schema.PermissionSet, e
 		StmtContext(tx.ctx, tx.cn.stmt.getPerms).
 		QueryContext(tx.ctx, path)
 	if err != nil {
-		return nil, err
+		return nil, normErr(err)
 	}
 	defer rows.Close()
 
@@ -375,7 +388,7 @@ func (tx *transaction) CreatePermissions(path riposo.Path, set schema.Permission
 	stmt.AppendString(" ON CONFLICT (path, permission, principal) DO NOTHING")
 
 	_, err := stmt.ExecContext(tx.ctx, tx)
-	return err
+	return normErr(err)
 }
 
 // MergePermissions implements permission.Transaction.
@@ -416,7 +429,7 @@ func (tx *transaction) MergePermissions(path riposo.Path, set schema.PermissionS
 	stmt.AppendByte(')')
 
 	if _, err := stmt.ExecContext(tx.ctx, tx); err != nil {
-		return err
+		return normErr(err)
 	}
 
 	// exit early if there is nothing to insert
@@ -446,7 +459,7 @@ func (tx *transaction) MergePermissions(path riposo.Path, set schema.PermissionS
 	stmt.AppendString(", column1, column2 FROM tuples")
 
 	_, err := stmt.ExecContext(tx.ctx, tx)
-	return err
+	return normErr(err)
 }
 
 // DeletePermissions implements permission.Transaction.
@@ -471,6 +484,14 @@ func (tx *transaction) DeletePermissions(paths []riposo.Path) error {
 	}
 
 	_, err := stmt.ExecContext(tx.ctx, tx)
+	return normErr(err)
+}
+
+func normErr(err error) error {
+	switch err {
+	case sql.ErrTxDone:
+		return permission.ErrTxDone
+	}
 	return err
 }
 
@@ -485,7 +506,7 @@ func permsIncludeChanges(set schema.PermissionSet) bool {
 
 func scanStringSlice(rows *sql.Rows, err error) ([]string, error) {
 	if err != nil {
-		return nil, err
+		return nil, normErr(err)
 	}
 	defer rows.Close()
 

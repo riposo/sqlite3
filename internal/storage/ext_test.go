@@ -15,5 +15,5 @@ func (tx *transaction) NumEntries() (int64, error) {
 	err := tx.
 		QueryRowContext(tx.ctx, `SELECT COUNT(1) FROM storage_objects WHERE NOT deleted`).
 		Scan(&cnt)
-	return cnt, err
+	return cnt, normErr(err)
 }
