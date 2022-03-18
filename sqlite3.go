@@ -3,9 +3,9 @@ package sqlite3
 import (
 	"github.com/riposo/riposo/pkg/plugin"
 
-	_ "github.com/riposo/sqlite3/internal/cache"
-	_ "github.com/riposo/sqlite3/internal/permission"
-	_ "github.com/riposo/sqlite3/internal/storage"
+	_ "github.com/riposo/sqlite3/internal/cache"      // auto-register cache adapter
+	_ "github.com/riposo/sqlite3/internal/permission" // auto-register permission adapter
+	_ "github.com/riposo/sqlite3/internal/storage"    // auto-register storage adapter
 )
 
 func init() {
