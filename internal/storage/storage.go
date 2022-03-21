@@ -27,16 +27,6 @@ func init() {
 
 // --------------------------------------------------------------------
 
-type updateHandle struct {
-	obj  *schema.Object
-	path riposo.Path
-}
-
-func (h *updateHandle) Object() *schema.Object { return h.obj }
-func (h *updateHandle) Path() riposo.Path      { return h.path }
-
-// --------------------------------------------------------------------
-
 type conn struct {
 	db   *sql.DB
 	hlp  riposo.Helpers
@@ -237,7 +227,7 @@ func (tx *transaction) Get(path riposo.Path) (*schema.Object, error) {
 }
 
 // GetForUpdate implements storage.Transaction interface.
-func (tx *transaction) GetForUpdate(path riposo.Path) (storage.UpdateHandle, error) {
+func (tx *transaction) GetForUpdate(path riposo.Path) (*schema.Object, error) {
 	if path.IsNode() {
 		return nil, storage.ErrInvalidPath
 	}
@@ -247,11 +237,7 @@ func (tx *transaction) GetForUpdate(path riposo.Path) (storage.UpdateHandle, err
 	}
 
 	ns, objID := path.Split()
-	obj, err := tx.get(ns, objID, false)
-	if err != nil {
-		return nil, err
-	}
-	return &updateHandle{obj: obj, path: path}, nil
+	return tx.get(ns, objID, false)
 }
 
 // Create implements storage.Transaction interface.
@@ -274,10 +260,7 @@ func (tx *transaction) Create(path riposo.Path, obj *schema.Object) error {
 	} else {
 		obj.ID = tx.cn.hlp.NextID()
 	}
-
-	if len(obj.Extra) == 0 {
-		obj.Extra = append(obj.Extra, '{', '}')
-	}
+	obj.Norm()
 
 	stmt := tx.StmtContext(tx.ctx, tx.cn.stmt.createObject)
 	defer stmt.Close()
@@ -295,17 +278,14 @@ func (tx *transaction) Create(path riposo.Path, obj *schema.Object) error {
 }
 
 // Update implements storage.Transaction interface.
-func (tx *transaction) Update(h storage.UpdateHandle) error {
-	uh := h.(*updateHandle)
-	if len(uh.obj.Extra) == 0 {
-		uh.obj.Extra = append(uh.obj.Extra, '{', '}')
-	}
+func (tx *transaction) Update(path riposo.Path, obj *schema.Object) error {
+	obj.Norm()
 
 	stmt := tx.StmtContext(tx.ctx, tx.cn.stmt.updateObject)
 	defer stmt.Close()
 
-	ns, objID := uh.path.Split()
-	if _, err := stmt.ExecContext(tx.ctx, ns, objID, uh.obj.Extra); err != nil {
+	ns, objID := path.Split()
+	if _, err := stmt.ExecContext(tx.ctx, ns, objID, obj.Extra); err != nil {
 		return normErr(err)
 	}
 
@@ -313,7 +293,7 @@ func (tx *transaction) Update(h storage.UpdateHandle) error {
 	if err != nil {
 		return err
 	}
-	uh.obj.ModTime = modTime
+	obj.ModTime = modTime
 	return nil
 }
 
