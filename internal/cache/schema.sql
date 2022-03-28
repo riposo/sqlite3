@@ -12,8 +12,10 @@ CREATE INDEX IF NOT EXISTS idx_cache_keys_expires_at ON cache_keys(expires_at);
 CREATE TABLE IF NOT EXISTS metainfo (
   name TEXT NOT NULL,
   value TEXT NOT NULL,
-
   PRIMARY KEY (name)
 );
-INSERT INTO metainfo VALUES ('cache_schema_version', '1')
-ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO
+  metainfo
+VALUES
+  ('cache_schema_version', '1') ON CONFLICT (name) DO NOTHING;

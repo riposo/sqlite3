@@ -217,27 +217,78 @@ func (tx *transaction) Exists(path riposo.Path) (bool, error) {
 }
 
 // Get implements storage.Transaction interface.
-func (tx *transaction) Get(path riposo.Path) (*schema.Object, error) {
+func (tx *transaction) Get(path riposo.Path, lock bool) (*schema.Object, error) {
 	if path.IsNode() {
 		return nil, storage.ErrInvalidPath
+	}
+
+	if lock {
+		if err := tx.writeLock(); err != nil {
+			return nil, err
+		}
 	}
 
 	ns, objID := path.Split()
 	return tx.get(ns, objID, false)
 }
 
-// GetForUpdate implements storage.Transaction interface.
-func (tx *transaction) GetForUpdate(path riposo.Path) (*schema.Object, error) {
-	if path.IsNode() {
-		return nil, storage.ErrInvalidPath
+// GetBatch implements storage.Transaction interface.
+func (tx *transaction) GetBatch(paths []riposo.Path, lock bool) ([]*schema.Object, error) {
+	for _, path := range paths {
+		if path.IsNode() {
+			return nil, storage.ErrInvalidPath
+		}
 	}
 
-	if err := tx.writeLock(); err != nil {
+	if len(paths) == 0 {
+		return nil, nil
+	}
+
+	if lock {
+		if err := tx.writeLock(); err != nil {
+			return nil, err
+		}
+	}
+
+	stmt := newQueryBuilder()
+	defer stmt.Release()
+
+	// collect paths to be deleted
+	stmt.AppendString(`SELECT path, id, last_modified, data FROM storage_objects WHERE NOT deleted AND (`)
+	for i, path := range paths {
+		if i != 0 {
+			stmt.AppendString(" OR ")
+		}
+		appendPathConstraint(stmt, path, true)
+	}
+	stmt.AppendByte(')')
+
+	rows, err := stmt.QueryContext(tx.ctx, tx)
+	if err != nil {
+		return nil, normErr(err)
+	}
+	defer rows.Close()
+
+	objs := make([]*schema.Object, len(paths))
+	for rows.Next() {
+		var namespace string
+		obj := new(schema.Object)
+		if err := rows.Scan(&namespace, &obj.ID, &obj.ModTime, &obj.Extra); err != nil {
+			return nil, normErr(err)
+		}
+
+		for i, path := range paths {
+			if ns, objID := path.Split(); ns == namespace && objID == obj.ID {
+				objs[i] = obj
+				break
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
-	ns, objID := path.Split()
-	return tx.get(ns, objID, false)
+	return objs, nil
 }
 
 // Create implements storage.Transaction interface.
@@ -353,9 +404,9 @@ func (tx *transaction) CountAll(path riposo.Path, opt storage.CountOptions) (int
 }
 
 // ListAll implements storage.Transaction interface.
-func (tx *transaction) ListAll(objs []*schema.Object, path riposo.Path, opt storage.ListOptions) ([]*schema.Object, error) {
+func (tx *transaction) ListAll(path riposo.Path, opt storage.ListOptions) ([]*schema.Object, error) {
 	if !path.IsNode() {
-		return objs, storage.ErrInvalidPath
+		return nil, storage.ErrInvalidPath
 	}
 
 	stmt := newQueryBuilder()
@@ -373,19 +424,23 @@ func (tx *transaction) ListAll(objs []*schema.Object, path riposo.Path, opt stor
 
 	rows, err := stmt.QueryContext(tx.ctx, tx)
 	if err != nil {
-		return objs, normErr(err)
+		return nil, normErr(err)
 	}
 	defer rows.Close()
 
+	var objs []*schema.Object
 	for rows.Next() {
-		var obj schema.Object
+		obj := new(schema.Object)
 		if err := rows.Scan(&obj.ID, &obj.ModTime, &obj.Deleted, &obj.Extra); err != nil {
-			return objs, err
+			return nil, err
 		}
-		objs = append(objs, &obj)
+		objs = append(objs, obj)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
-	return objs, rows.Err()
+	return objs, nil
 }
 
 // DeleteAll implements storage.Transaction interface.
